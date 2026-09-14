@@ -463,15 +463,13 @@ partial class DialogTopicBinaryOverlay
         return null;
     }
 
-    private RangeInt32? _DATALocation;
+    private int? _DATALocation;
 
     private int? _SubtypeMarkerLocation;
 
     public partial ParseResult DataCustomParse(OverlayStream stream, int offset, PreviousParse lastParsed)
     {
-        var header = stream.GetSubrecordHeader();
-        var start = (stream.Position - offset) + header.HeaderLength;
-        _DATALocation = new RangeInt32(start, start + header.ContentLength - 1);
+        _DATALocation = stream.Position - offset;
         return (int)DialogTopic_FieldIndex.TopicFlags;
     }
 
@@ -482,7 +480,7 @@ partial class DialogTopicBinaryOverlay
     }
 
     private ReadOnlySpan<byte> DataContent =>
-        _DATALocation is { } loc ? _recordData.Span.Slice(loc.Min, loc.Max - loc.Min + 1) : default;
+        _DATALocation is { } loc ? HeaderTranslation.ExtractSubrecordMemory(_recordData, loc, _package.MetaData.Constants).Span : default;
 
     private RecordType SubtypeMarker
     {
