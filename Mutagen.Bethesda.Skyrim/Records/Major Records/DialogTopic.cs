@@ -257,6 +257,8 @@ public partial class DialogTopic
     private static readonly IReadOnlyDictionary<SubtypeEnum, (RecordType Marker, CategoryEnum Category)> _subtypeLookup =
         SubtypeMarkers.ToDictionary(x => x.Subtype, x => (new RecordType(x.Marker), x.Category));
 
+    internal SubtypeEnum? MarkerSubtype;
+
     /// <summary>The subtype a SNAM marker names, or null if it names none.</summary>
     public static SubtypeEnum? SubtypeFromMarker(RecordType marker) =>
         _markerToSubtype.TryGetValue(marker, out var subtype) ? subtype : null;
@@ -274,6 +276,14 @@ partial class DialogTopicBinaryCreateTranslation
 {
     public static partial void CustomBinaryEndImport(MutagenFrame frame, IDialogTopicInternal obj)
     {
+        if (obj is DialogTopic topic)
+        {
+            if (topic.MarkerSubtype is { } markerSubtype)
+            {
+                topic.Subtype = markerSubtype;
+            }
+            topic.MarkerSubtype = null;
+        }
         try
         {
             if (frame.Reader.Complete) return;
@@ -320,8 +330,7 @@ partial class DialogTopicBinaryCreateTranslation
         {
             item.TopicFlags = (DialogTopic.TopicFlag)content[0];
         }
-        if (content.Length >= 4
-            && lastParsed.ParsedIndex != (int)DialogTopic_FieldIndex.Subtype)
+        if (content.Length >= 4)
         {
             item.Subtype = (DialogTopic.SubtypeEnum)BinaryPrimitives.ReadUInt16LittleEndian(content.Slice(2));
         }
@@ -332,9 +341,11 @@ partial class DialogTopicBinaryCreateTranslation
     {
         var content = frame.ReadSubrecord().Content;
         if (content.Length < 4) return null;
-        if (DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(content))) is not { } subtype) return null;
-        item.Subtype = subtype;
-        return (int)DialogTopic_FieldIndex.Subtype;
+        if (item is DialogTopic topic)
+        {
+            topic.MarkerSubtype = DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(content)));
+        }
+        return null;
     }
 
     public static partial ParseResult FillBinaryResponseCountCustom(MutagenFrame frame, IDialogTopicInternal item, PreviousParse lastParsed)
