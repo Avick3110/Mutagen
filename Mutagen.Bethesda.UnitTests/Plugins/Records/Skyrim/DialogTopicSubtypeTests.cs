@@ -191,37 +191,37 @@ public class DialogTopicSubtypeTests
     }
 
     [Fact]
-    public void ShortSnam_FallsBackToRawData()
+    public void ShortSnam_LeavesTheSubtypeDefault()
     {
         var bytes = MakeTopicBytes(new byte[] { 0x00, 0x07, 0x49, 0x00 }, "AB");
 
         foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
         {
-            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.RechargeExit);
+            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.Custom);
         }
     }
 
     [Fact]
-    public void MissingSnam_FallsBackToRawData()
+    public void MissingSnam_LeavesTheSubtypeDefault()
     {
         var bytes = MakeTopicBytes(new byte[] { 0x00, 0x07, 0x49, 0x00 }, snam: null);
 
         foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
         {
-            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.RechargeExit);
+            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.Custom);
         }
     }
 
     [Theory]
     [InlineData("ZZZZ")]
     [InlineData("\0\0\0\0")]
-    public void UnknownSnam_FallsBackToRawData(string snam)
+    public void UnknownSnam_LeavesTheSubtypeDefault(string snam)
     {
         var bytes = MakeTopicBytes(new byte[] { 0x00, 0x03, 0x17, 0x00 }, snam);
 
         foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
         {
-            topic.Subtype.ShouldBe((DialogTopic.SubtypeEnum)23);
+            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.Custom);
         }
     }
 
@@ -283,28 +283,41 @@ public class DialogTopicSubtypeTests
     {
         var bytes = MakeTopicBytes(new byte[] { 0x00, 0x03, 0x17, 0x00 }, "FVDL");
 
-        foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
-        {
-            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.CustomFVDL);
+        var written = Write(ReadDirect(bytes));
 
-            var written = Write(topic);
-            Subrecord(written, "DATA").ShouldBe(new byte[] { 0x00, 0x07, 0x67, 0x00 });
-            Subrecord(written, "SNAM").ShouldBe(Encoding.ASCII.GetBytes("FVDL"));
-            ReadDirect(written).Subtype.ShouldBe(DialogTopic.SubtypeEnum.CustomFVDL);
-        }
+        ReadDirect(bytes).Subtype.ShouldBe(DialogTopic.SubtypeEnum.CustomFVDL);
+        ReadOverlay(bytes).Subtype.ShouldBe(DialogTopic.SubtypeEnum.CustomFVDL);
+        Subrecord(written, "DATA").ShouldBe(new byte[] { 0x00, 0x07, 0x67, 0x00 });
+        Subrecord(written, "SNAM").ShouldBe(Encoding.ASCII.GetBytes("FVDL"));
+        ReadDirect(written).Subtype.ShouldBe(DialogTopic.SubtypeEnum.CustomFVDL);
+        Write(ReadOverlay(bytes)).ShouldBe(written);
     }
 
     [Fact]
-    public void MissingSnam_WritesBackWithSnamFromSubtype()
+    public void MissingSnam_WritesBackAsTheDefaultSubtype()
     {
         var bytes = MakeTopicBytes(new byte[] { 0x00, 0x07, 0x49, 0x00 }, snam: null);
 
-        foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
+        var written = Write(ReadDirect(bytes));
+
+        Subrecord(written, "SNAM").ShouldBe(Encoding.ASCII.GetBytes("CUST"));
+        Subrecord(written, "DATA").ShouldBe(new byte[] { 0x00, 0x00, 0x00, 0x00 });
+        Write(ReadOverlay(bytes)).ShouldBe(written);
+    }
+
+    [Fact]
+    public void SubtypeOutsideTheEnum_WritesAZeroedMarker()
+    {
+        var topic = new DialogTopic(new FormKey(TestModKey, 0x800), SkyrimRelease.SkyrimSE)
         {
-            var written = Write(topic);
-            Subrecord(written, "SNAM").ShouldBe(Encoding.ASCII.GetBytes("RCEX"));
-            Subrecord(written, "DATA").ShouldBe(new byte[] { 0x00, 0x06, 0x49, 0x00 });
-        }
+            EditorID = "TestTopic",
+            Subtype = (DialogTopic.SubtypeEnum)9999,
+        };
+
+        var bytes = Write(topic);
+
+        Subrecord(bytes, "DATA").ShouldBe(new byte[] { 0x00, 0x00, 0x0F, 0x27 });
+        Subrecord(bytes, "SNAM").ShouldBe(new byte[] { 0x00, 0x00, 0x00, 0x00 });
     }
 
     [Fact]
