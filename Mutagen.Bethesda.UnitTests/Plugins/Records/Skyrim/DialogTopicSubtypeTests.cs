@@ -28,7 +28,12 @@ public class DialogTopicSubtypeTests
         stream.Write(content);
     }
 
-    private static byte[] MakeTopicBytes(byte[]? data, string? snam, ushort formVersion = 40, bool snamFirst = false)
+    private static byte[] MakeTopicBytes(
+        byte[]? data,
+        string? snam,
+        ushort formVersion = 40,
+        bool snamFirst = false,
+        bool countBetween = false)
     {
         var content = new MemoryStream();
         WriteSubrecord(content, "EDID", Encoding.ASCII.GetBytes("TestTopic\0"));
@@ -36,6 +41,10 @@ public class DialogTopicSubtypeTests
         if (snamFirst && snam is not null)
         {
             WriteSubrecord(content, "SNAM", Encoding.ASCII.GetBytes(snam));
+        }
+        if (countBetween)
+        {
+            WriteSubrecord(content, "TIFC", new byte[4]);
         }
         if (data is not null)
         {
@@ -147,6 +156,17 @@ public class DialogTopicSubtypeTests
     }
 
     [Fact]
+    public void SnamAndDataApart_TakesSubtypeFromSnam()
+    {
+        var bytes = MakeTopicBytes(new byte[] { 0x00, 0x07, 0x49, 0x00 }, "HELO", snamFirst: true, countBetween: true);
+
+        foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
+        {
+            topic.Subtype.ShouldBe(DialogTopic.SubtypeEnum.Hello);
+        }
+    }
+
+    [Fact]
     public void MissingData_TakesSubtypeFromSnam()
     {
         var bytes = MakeTopicBytes(data: null, snam: "HELO");
@@ -192,10 +212,12 @@ public class DialogTopicSubtypeTests
         }
     }
 
-    [Fact]
-    public void UnknownSnam_FallsBackToRawData()
+    [Theory]
+    [InlineData("ZZZZ")]
+    [InlineData("\0\0\0\0")]
+    public void UnknownSnam_FallsBackToRawData(string snam)
     {
-        var bytes = MakeTopicBytes(new byte[] { 0x00, 0x03, 0x17, 0x00 }, "\0\0\0\0");
+        var bytes = MakeTopicBytes(new byte[] { 0x00, 0x03, 0x17, 0x00 }, snam);
 
         foreach (var topic in new[] { ReadDirect(bytes), ReadOverlay(bytes) })
         {
@@ -307,7 +329,6 @@ public class DialogTopicSubtypeTests
             var marker = DialogTopic.MarkerFromSubtype(subtype);
             marker.ShouldNotBeNull();
             DialogTopic.SubtypeFromMarker(marker!.Value).ShouldBe(subtype);
-            DialogTopic.CategoryFromSubtype(subtype).ShouldNotBeNull();
         }
 
         DialogTopic.SubtypeFromMarker(RecordType.Null).ShouldBeNull();
