@@ -144,7 +144,7 @@ public partial class DialogTopic
         CustomFVDL = 103,
     }
 
-    private static readonly (SubtypeEnum Subtype, string Marker, CategoryEnum Category)[] SubtypeMarkers =
+    private static readonly (SubtypeEnum Subtype, string Marker, CategoryEnum Category)[] _subtypeMarkers =
     [
         (SubtypeEnum.Custom, "CUST", CategoryEnum.Topic),
         (SubtypeEnum.ForceGreet, "PFGT", CategoryEnum.Topic),
@@ -252,20 +252,17 @@ public partial class DialogTopic
     ];
 
     private static readonly IReadOnlyDictionary<RecordType, SubtypeEnum> _markerToSubtype =
-        SubtypeMarkers.ToDictionary(x => new RecordType(x.Marker), x => x.Subtype);
+        _subtypeMarkers.ToDictionary(x => new RecordType(x.Marker), x => x.Subtype);
 
     private static readonly IReadOnlyDictionary<SubtypeEnum, (RecordType Marker, CategoryEnum Category)> _subtypeLookup =
-        SubtypeMarkers.ToDictionary(x => x.Subtype, x => (new RecordType(x.Marker), x.Category));
+        _subtypeMarkers.ToDictionary(x => x.Subtype, x => (new RecordType(x.Marker), x.Category));
 
-    /// <summary>The subtype a SNAM marker names, or null if it names none.</summary>
     public static SubtypeEnum? SubtypeFromMarker(RecordType marker) =>
         _markerToSubtype.TryGetValue(marker, out var subtype) ? subtype : null;
 
-    /// <summary>The SNAM marker for a subtype, or null if it has none.</summary>
-    public static RecordType? MarkerFromSubtype(SubtypeEnum subtype) =>
+    internal static RecordType? MarkerFromSubtype(SubtypeEnum subtype) =>
         _subtypeLookup.TryGetValue(subtype, out var found) ? found.Marker : (RecordType?)null;
 
-    /// <summary>The DATA category for a subtype, or null if it has none.</summary>
     public static CategoryEnum? CategoryFromSubtype(SubtypeEnum subtype) =>
         _subtypeLookup.TryGetValue(subtype, out var found) ? found.Category : null;
 }
