@@ -235,7 +235,7 @@ public class SkyrimProcessor : Processor
             formKey,
             fileOffset);
 
-        // Mutagen writes DATA's category and subtype from the subtype SNAM names.
+        // Derive DATA's category and subtype from SNAM
         if (majorFrame.TryFindSubrecord(RecordTypes.DATA, out var dialDataRec)
             && dialDataRec.ContentLength >= 4)
         {
