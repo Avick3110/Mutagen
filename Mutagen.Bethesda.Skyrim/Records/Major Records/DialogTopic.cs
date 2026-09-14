@@ -141,6 +141,7 @@ public partial class DialogTopic
         OutOfBreath = 100,
         CombatGrunt = 101,
         LeaveWaterBreath = 102,
+        CustomFVDL = 103,
     }
 
     private static readonly (SubtypeEnum Subtype, string Marker, CategoryEnum Category)[] SubtypeMarkers =
@@ -247,6 +248,7 @@ public partial class DialogTopic
         (SubtypeEnum.OutOfBreath, "OUTB", CategoryEnum.Misc),
         (SubtypeEnum.CombatGrunt, "GRNT", CategoryEnum.Misc),
         (SubtypeEnum.LeaveWaterBreath, "LWBS", CategoryEnum.Misc),
+        (SubtypeEnum.CustomFVDL, "FVDL", CategoryEnum.Misc),
     ];
 
     private static readonly IReadOnlyDictionary<RecordType, SubtypeEnum> _markerToSubtype =
