@@ -257,8 +257,6 @@ public partial class DialogTopic
     private static readonly IReadOnlyDictionary<SubtypeEnum, (RecordType Marker, CategoryEnum Category)> _subtypeLookup =
         SubtypeMarkers.ToDictionary(x => x.Subtype, x => (new RecordType(x.Marker), x.Category));
 
-    internal SubtypeEnum? MarkerSubtype;
-
     /// <summary>The subtype a SNAM marker names, or null if it names none.</summary>
     public static SubtypeEnum? SubtypeFromMarker(RecordType marker) =>
         _markerToSubtype.TryGetValue(marker, out var subtype) ? subtype : null;
@@ -276,14 +274,6 @@ partial class DialogTopicBinaryCreateTranslation
 {
     public static partial void CustomBinaryEndImport(MutagenFrame frame, IDialogTopicInternal obj)
     {
-        if (obj is DialogTopic topic)
-        {
-            if (topic.MarkerSubtype is { } markerSubtype)
-            {
-                topic.Subtype = markerSubtype;
-            }
-            topic.MarkerSubtype = null;
-        }
         try
         {
             if (frame.Reader.Complete) return;
@@ -330,22 +320,18 @@ partial class DialogTopicBinaryCreateTranslation
         {
             item.TopicFlags = (DialogTopic.TopicFlag)content[0];
         }
-        if (content.Length >= 4)
-        {
-            item.Subtype = (DialogTopic.SubtypeEnum)BinaryPrimitives.ReadUInt16LittleEndian(content.Slice(2));
-        }
-        return (int)DialogTopic_FieldIndex.Subtype;
+        return (int)DialogTopic_FieldIndex.TopicFlags;
     }
 
     public static partial ParseResult FillBinarySubtypeMarkerCustom(MutagenFrame frame, IDialogTopicInternal item, PreviousParse lastParsed)
     {
         var content = frame.ReadSubrecord().Content;
         if (content.Length < 4) return null;
-        if (item is DialogTopic topic)
+        if (DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(content))) is { } subtype)
         {
-            topic.MarkerSubtype = DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(content)));
+            item.Subtype = subtype;
         }
-        return null;
+        return (int)DialogTopic_FieldIndex.Subtype;
     }
 
     public static partial ParseResult FillBinaryResponseCountCustom(MutagenFrame frame, IDialogTopicInternal item, PreviousParse lastParsed)
@@ -489,7 +475,7 @@ partial class DialogTopicBinaryOverlay
         var header = stream.GetSubrecordHeader();
         var start = (stream.Position - offset) + header.HeaderLength;
         _DATALocation = new RangeInt32(start, start + header.ContentLength - 1);
-        return (int)DialogTopic_FieldIndex.Subtype;
+        return (int)DialogTopic_FieldIndex.TopicFlags;
     }
 
     public partial ParseResult SubtypeMarkerCustomParse(OverlayStream stream, int offset, PreviousParse lastParsed)
@@ -521,13 +507,5 @@ partial class DialogTopicBinaryOverlay
         }
     }
 
-    public DialogTopic.SubtypeEnum Subtype
-    {
-        get
-        {
-            if (DialogTopic.SubtypeFromMarker(SubtypeMarker) is { } subtype) return subtype;
-            var data = DataContent;
-            return data.Length >= 4 ? (DialogTopic.SubtypeEnum)BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(2)) : default;
-        }
-    }
+    public DialogTopic.SubtypeEnum Subtype => DialogTopic.SubtypeFromMarker(SubtypeMarker) ?? default;
 }
