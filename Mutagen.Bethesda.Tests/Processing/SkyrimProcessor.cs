@@ -235,26 +235,26 @@ public class SkyrimProcessor : Processor
             formKey,
             fileOffset);
 
-        // Mutagen takes SNAM as the topic's subtype and emits DATA's category and subtype from it,
-        // so a pre-Dragonborn topic's stale DATA values get renumbered on write.
-        if (majorFrame.TryFindSubrecord(RecordTypes.SNAM, out var snamRec)
-            && snamRec.ContentLength == 4
-            && majorFrame.TryFindSubrecord(RecordTypes.DATA, out var dialDataRec)
+        // Mutagen writes DATA's category and subtype from the subtype SNAM names.
+        if (majorFrame.TryFindSubrecord(RecordTypes.DATA, out var dialDataRec)
             && dialDataRec.ContentLength >= 4)
         {
-            var marker = new RecordType(BinaryPrimitives.ReadInt32LittleEndian(snamRec.Content));
-            if (DialogTopic.SubtypeFromMarker(marker) is { } subtype
-                && DialogTopic.CategoryFromSubtype(subtype) is { } category)
+            var subtype = (DialogTopic.SubtypeEnum)BinaryPrimitives.ReadUInt16LittleEndian(dialDataRec.Content.Slice(2));
+            if (majorFrame.TryFindSubrecord(RecordTypes.SNAM, out var snamRec)
+                && snamRec.ContentLength >= 4
+                && DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(snamRec.Content))) is { } markerSubtype)
             {
-                byte[] derived = new byte[3];
-                derived[0] = (byte)category;
-                BinaryPrimitives.WriteUInt16LittleEndian(derived.AsSpan(1), (ushort)subtype);
-                if (!dialDataRec.Content.Slice(1, 3).SequenceEqual(derived))
-                {
-                    Instructions.SetSubstitution(
-                        fileOffset + dialDataRec.Location + stream.MetaData.Constants.SubConstants.HeaderLength + 1,
-                        derived);
-                }
+                subtype = markerSubtype;
+            }
+
+            byte[] derived = new byte[3];
+            derived[0] = (byte)(DialogTopic.CategoryFromSubtype(subtype) ?? default);
+            BinaryPrimitives.WriteUInt16LittleEndian(derived.AsSpan(1), (ushort)subtype);
+            if (!dialDataRec.Content.Slice(1, 3).SequenceEqual(derived))
+            {
+                Instructions.SetSubstitution(
+                    fileOffset + dialDataRec.Location + stream.MetaData.Constants.SubConstants.HeaderLength + 1,
+                    derived);
             }
         }
 
