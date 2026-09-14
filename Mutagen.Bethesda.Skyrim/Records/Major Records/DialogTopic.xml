@@ -7,10 +7,9 @@
       <FormLink name="Branch" recordType="BNAM" refName="DialogBranch" />
       <FormLink name="Quest" recordType="QNAM" refName="Quest" />
       <Enum name="TopicFlags" enumName="DialogTopic.TopicFlag" byteLength="1" binary="NoGeneration" />
-      <Enum name="Category" enumName="DialogTopic.CategoryEnum" byteLength="1" binary="NoGeneration" />
       <Enum name="Subtype" enumName="DialogTopic.SubtypeEnum" byteLength="2" binary="NoGeneration" />
       <CustomLogic name="Data" recordType="DATA" />
-      <RecordType name="SubtypeName" recordType="SNAM" nullable="False" binary="Custom" />
+      <CustomLogic name="SubtypeMarker" recordType="SNAM" />
       <CustomLogic name="ResponseCount" recordType="TIFC" />
       <Int32 name="Timestamp" binary="NoGeneration" />
       <Int32 name="Unknown" binary="NoGeneration" />
