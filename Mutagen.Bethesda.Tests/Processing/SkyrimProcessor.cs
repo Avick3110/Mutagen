@@ -239,7 +239,7 @@ public class SkyrimProcessor : Processor
         if (majorFrame.TryFindSubrecord(RecordTypes.DATA, out var dialDataRec)
             && dialDataRec.ContentLength >= 4)
         {
-            var subtype = (DialogTopic.SubtypeEnum)BinaryPrimitives.ReadUInt16LittleEndian(dialDataRec.Content.Slice(2));
+            var subtype = default(DialogTopic.SubtypeEnum);
             if (majorFrame.TryFindSubrecord(RecordTypes.SNAM, out var snamRec)
                 && snamRec.ContentLength >= 4
                 && DialogTopic.SubtypeFromMarker(new RecordType(BinaryPrimitives.ReadInt32LittleEndian(snamRec.Content))) is { } markerSubtype)
