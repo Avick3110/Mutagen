@@ -83,24 +83,41 @@ internal static class GenderedItemBinaryOverlay
                     recordTypeConverter: femaleRecordConverter,
                     doNotShortCircuit: !shortCircuit));
             }
-            else if ((parseNonConvertedItems || maleRecordConverter == null) && i == 0)
+            else if (maleRecordConverter == null && i == 0)
             {
                 maleObj = creator(stream, package, new TypedParseParams(
                     lengthOverride: null,
                     recordTypeConverter: maleRecordConverter,
                     doNotShortCircuit: !shortCircuit));
             }
-            else if (parseNonConvertedItems && i == 1)
+            // An unconverted subrecord belongs to neither half by type, so it goes to a half the pair does not already hold,
+            // and only if the item reads it
+            else if (parseNonConvertedItems && (existing?.Male == null && i == 0 || existing?.Female == null))
             {
-                femaleObj = creator(stream, package, new TypedParseParams(
+                var male = existing?.Male == null && i == 0;
+                var startPos = stream.Position;
+                var item = creator(stream, package, new TypedParseParams(
                     lengthOverride: null,
-                    recordTypeConverter: femaleRecordConverter,
+                    recordTypeConverter: male ? maleRecordConverter : femaleRecordConverter,
                     doNotShortCircuit: !shortCircuit));
+                if (stream.Position == startPos) break;
+                if (male)
+                {
+                    maleObj = item;
+                }
+                else
+                {
+                    femaleObj = item;
+                }
+            }
+            else
+            {
+                break;
             }
         }
 
         var readLen = stream.Position - initialPos;
-        if (readLen == 0)
+        if (readLen == 0 && existing == null)
         {
             throw new ArgumentException("Expected things to be read.");
         }

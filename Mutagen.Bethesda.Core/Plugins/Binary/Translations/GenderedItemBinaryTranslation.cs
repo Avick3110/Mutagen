@@ -96,21 +96,32 @@ internal sealed class GenderedItemBinaryTranslation
         IGenderedItemGetter<TItem?>? existing = null)
         where TItem : class
     {
-        if (!transl(frame, out var male, new TypedParseParams(
+        TItem? male = existing?.Male, female = existing?.Female;
+        // A half already held is only replaced by a subrecord converted to that half, never by an unconverted one
+        if ((male == null || NextIsConverted(frame, maleRecordConverter))
+            && transl(frame, out var readMale, new TypedParseParams(
                 lengthOverride: null,
                 recordTypeConverter: maleRecordConverter,
                 doNotShortCircuit: !shortCircuit)))
         {
-            male = existing?.Male;
+            male = readMale;
         }
-        if (!transl(frame, out var female, new TypedParseParams(
+        if ((female == null || NextIsConverted(frame, femaleRecordConverter))
+            && transl(frame, out var readFemale, new TypedParseParams(
                 lengthOverride: null,
                 recordTypeConverter: femaleRecordConverter,
                 doNotShortCircuit: !shortCircuit)))
         {
-            female = existing?.Female;
+            female = readFemale;
         }
         return new GenderedItem<TItem?>(male, female);
+    }
+
+    private static bool NextIsConverted(MutagenFrame frame, RecordTypeConverter? converter)
+    {
+        if (converter == null) return true;
+        if (frame.Reader.Complete) return false;
+        return converter.ToConversions.ContainsKey(frame.GetSubrecordHeader().RecordType);
     }
 
     public static GenderedItem<TItem> ParseRequired<TItem>(
