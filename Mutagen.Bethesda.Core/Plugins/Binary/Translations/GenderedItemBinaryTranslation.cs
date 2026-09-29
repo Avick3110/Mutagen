@@ -261,17 +261,17 @@ internal sealed class GenderedItemBinaryTranslation
             if (type == maleMarker)
             {
                 frame.Position += subHeader.TotalLength;
-                if (!transl(frame, out male, maleRecordConverter))
+                if (transl(frame, out var item, maleRecordConverter))
                 {
-                    male = null;
+                    male = item;
                 }
             }
             else if (type == femaleMarker)
             {
                 frame.Position += subHeader.TotalLength;
-                if (!transl(frame, out female, femaleRecordConverter))
+                if (transl(frame, out var item, femaleRecordConverter))
                 {
-                    female = null;
+                    female = item;
                 }
             }
             else
