@@ -90,8 +90,10 @@ public class GenderedSplitPairTests
         new[] { ReadArmaDirect(bytes), ReadArmaOverlay(bytes) };
 
     // The order in houseCARL #961: CBBEtoUBE v1.5 writes the male world and first-person models first.
+    // DNAM is there because every real ARMA has one, and the overlay reads it when writing.
     private static byte[] ArmaInterleaved() => MakeRecord("ARMA",
         ("EDID", Str("TestArma")),
+        ("DNAM", new byte[12]),
         ("MOD2", Str("male.nif")),
         ("MO2T", new byte[] { 1, 2, 3, 4 }),
         ("MOD4", Str("male1st.nif")),
@@ -102,6 +104,7 @@ public class GenderedSplitPairTests
     // The Creation Kit order, where each pair is adjacent.
     private static byte[] ArmaAdjacent() => MakeRecord("ARMA",
         ("EDID", Str("TestArma")),
+        ("DNAM", new byte[12]),
         ("MOD2", Str("male.nif")),
         ("MO2T", new byte[] { 1, 2, 3, 4 }),
         ("MOD3", Str("female.nif")),
@@ -167,6 +170,7 @@ public class GenderedSplitPairTests
     {
         var bytes = MakeRecord("ARMA",
             ("EDID", Str("TestArma")),
+            ("DNAM", new byte[12]),
             ("NAM0", BitConverter.GetBytes(0x801)),
             ("NAM2", BitConverter.GetBytes(0x803)),
             ("NAM1", BitConverter.GetBytes(0x802)),
