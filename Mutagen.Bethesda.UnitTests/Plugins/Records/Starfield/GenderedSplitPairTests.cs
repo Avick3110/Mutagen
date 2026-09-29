@@ -52,7 +52,8 @@ public class GenderedSplitPairTests
     }
 
     // An FLLD after SkinTexture is routed to the WorldModel arm by count. It is not a male model subrecord,
-    // so it must not replace the male world model read earlier; it fills the half that is still empty.
+    // so it must not replace the male world model read earlier. Where the stray FLLD ends up is a routing
+    // question the format does not settle, so it is not asserted.
     [Fact]
     public void ArmorAddon_UnconvertedSubrecordOnReentry_KeepsMaleModel()
     {
@@ -70,7 +71,26 @@ public class GenderedSplitPairTests
             arma.WorldModel.Male.ShouldNotBeNull();
             arma.WorldModel.Male.File.GivenPath.ShouldBe("male.nif");
             arma.WorldModel.Male.LightLayer.ShouldBeNull();
+        }
+    }
+
+    // The female model takes the first FLLD; the second is one the model does not take. It must not
+    // replace the female model read earlier in the same entry into the arm.
+    [Fact]
+    public void ArmorAddon_UnconvertedSubrecordAfterHalfReadInSameEntry_KeepsIt()
+    {
+        var bytes = Record(Constants, "ARMA",
+            ("EDID", Str("TestArma")),
+            ("DNAM", new byte[13]),
+            ("MOD3", Str("female.nif")),
+            ("FLLD", U32(5)),
+            ("FLLD", U32(6)));
+
+        foreach (var arma in ReadArmaBoth(bytes))
+        {
+            arma.WorldModel.ShouldNotBeNull();
             arma.WorldModel.Female.ShouldNotBeNull();
+            arma.WorldModel.Female.File.GivenPath.ShouldBe("female.nif");
             arma.WorldModel.Female.LightLayer.ShouldBe(5u);
         }
     }

@@ -116,11 +116,11 @@ internal static class GenderedItemBinaryOverlay
                     recordTypeConverter: maleRecordConverter,
                     doNotShortCircuit: !shortCircuit));
             }
-            // An unconverted subrecord belongs to neither half by type, so it goes to a half the pair does not already hold,
-            // and only if the item reads it
-            else if (parseNonConvertedItems && (existing?.Male == null && i == 0 || existing?.Female == null))
+            // An unconverted subrecord belongs to neither half by type, so it goes to a half the pair does not hold yet,
+            // from an earlier entry or from this one, and only if the item reads it
+            else if (parseNonConvertedItems && (maleObj == null && i == 0 || femaleObj == null))
             {
-                var male = existing?.Male == null && i == 0;
+                var male = maleObj == null && i == 0;
                 var startPos = stream.Position;
                 var item = creator(stream, package, new TypedParseParams(
                     lengthOverride: null,
