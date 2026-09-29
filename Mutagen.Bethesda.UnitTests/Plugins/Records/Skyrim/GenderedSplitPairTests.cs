@@ -1,4 +1,3 @@
-using System.Text;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Binary.Overlay;
 using Mutagen.Bethesda.Plugins.Binary.Streams;
@@ -8,6 +7,7 @@ using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Shouldly;
 using Xunit;
+using static Mutagen.Bethesda.UnitTests.Plugins.Records.RawRecordBytes;
 
 namespace Mutagen.Bethesda.UnitTests.Plugins.Records.Skyrim;
 
@@ -15,43 +15,19 @@ namespace Mutagen.Bethesda.UnitTests.Plugins.Records.Skyrim;
 // must keep both halves, in the direct parse and in the overlay.
 public class GenderedSplitPairTests
 {
-    private static readonly ModKey TestModKey = new("Test", ModType.Plugin);
+    private static readonly GameConstants Constants = GameConstants.SkyrimSE;
 
-    private static ParsingMeta Meta()
-    {
-        var masters = SeparatedMasterPackage.NotSeparate(new MasterReferenceCollection(TestModKey));
-        return new ParsingMeta(GameConstants.SkyrimSE, TestModKey, masters);
-    }
+    private static ParsingMeta Meta() => RawRecordBytes.Meta(Constants);
 
-    private static byte[] Str(string s) => Encoding.ASCII.GetBytes(s + "\0");
+    private static byte[] MakeRecord(string type, params (string Type, byte[] Content)[] subrecords) =>
+        Record(Constants, type, subrecords);
 
-    private static byte[] MakeRecord(string type, params (string Type, byte[] Content)[] subrecords)
-    {
-        var content = new MemoryStream();
-        foreach (var (subType, subContent) in subrecords)
-        {
-            content.Write(Encoding.ASCII.GetBytes(subType));
-            content.Write(BitConverter.GetBytes(checked((ushort)subContent.Length)));
-            content.Write(subContent);
-        }
-        var body = content.ToArray();
-
-        var record = new MemoryStream();
-        record.Write(Encoding.ASCII.GetBytes(type));
-        record.Write(BitConverter.GetBytes(body.Length));
-        record.Write(BitConverter.GetBytes(0));
-        record.Write(BitConverter.GetBytes(0x800));
-        record.Write(BitConverter.GetBytes(0));
-        record.Write(BitConverter.GetBytes((ushort)44));
-        record.Write(BitConverter.GetBytes((ushort)0));
-        record.Write(body);
-        return record.ToArray();
-    }
+    private static MutagenFrame Frame(byte[] bytes) => new(new MutagenMemoryReadStream(bytes, Meta()));
 
     private static byte[] Write(ISkyrimMajorRecordGetter record)
     {
         var masters = new MasterReferenceCollection(TestModKey);
-        var bundle = new WritingBundle(GameConstants.SkyrimSE)
+        var bundle = new WritingBundle(Constants)
         {
             MasterReferences = masters,
             SeparatedMasterPackage = SeparatedMasterPackage.NotSeparate(masters),
@@ -64,19 +40,7 @@ public class GenderedSplitPairTests
         return memStream.ToArray();
     }
 
-    private static List<string> SubrecordTypes(byte[] bytes)
-    {
-        var ret = new List<string>();
-        for (int i = 24; i + 6 <= bytes.Length; )
-        {
-            ret.Add(Encoding.ASCII.GetString(bytes, i, 4));
-            i += 6 + BitConverter.ToUInt16(bytes, i + 4);
-        }
-        return ret;
-    }
-
-    private static IArmorAddonGetter ReadArmaDirect(byte[] bytes) =>
-        ArmorAddon.CreateFromBinary(new MutagenFrame(new MutagenMemoryReadStream(bytes, Meta())));
+    private static ArmorAddon ReadArmaDirect(byte[] bytes) => ArmorAddon.CreateFromBinary(Frame(bytes));
 
     private static IArmorAddonGetter ReadArmaOverlay(byte[] bytes)
     {
@@ -89,7 +53,14 @@ public class GenderedSplitPairTests
     private static IEnumerable<IArmorAddonGetter> ReadArmaBoth(byte[] bytes) =>
         new[] { ReadArmaDirect(bytes), ReadArmaOverlay(bytes) };
 
-    // The order in houseCARL #961: CBBEtoUBE v1.5 writes the male world and first-person models first.
+    private static IEnumerable<IRaceGetter> ReadRaceBoth(byte[] bytes)
+    {
+        var meta = Meta();
+        yield return Race.CreateFromBinary(Frame(bytes));
+        yield return RaceBinaryOverlay.RaceFactory(new OverlayStream(bytes, meta), new BinaryOverlayFactoryPackage(meta));
+    }
+
+    // An ARMA written by the CBBEtoUBE v1.5 converter, which emits the models in MOD2, MOD4, MOD3 order.
     // DNAM is there because every real ARMA has one, and the overlay reads it when writing.
     private static byte[] ArmaInterleaved() => MakeRecord("ARMA",
         ("EDID", Str("TestArma")),
@@ -154,7 +125,7 @@ public class GenderedSplitPairTests
     {
         foreach (var arma in ReadArmaBoth(ArmaInterleaved()))
         {
-            var types = SubrecordTypes(Write(arma));
+            var types = SubrecordTypes(Constants, Write(arma));
             types.ShouldContain("MOD2");
             types.ShouldContain("MO2T");
             types.ShouldContain("MOD3");
@@ -171,10 +142,10 @@ public class GenderedSplitPairTests
         var bytes = MakeRecord("ARMA",
             ("EDID", Str("TestArma")),
             ("DNAM", new byte[12]),
-            ("NAM0", BitConverter.GetBytes(0x801)),
-            ("NAM2", BitConverter.GetBytes(0x803)),
-            ("NAM1", BitConverter.GetBytes(0x802)),
-            ("NAM3", BitConverter.GetBytes(0x804)));
+            ("NAM0", U32(0x801)),
+            ("NAM2", U32(0x803)),
+            ("NAM1", U32(0x802)),
+            ("NAM3", U32(0x804)));
 
         foreach (var arma in ReadArmaBoth(bytes))
         {
@@ -196,7 +167,7 @@ public class GenderedSplitPairTests
             ("EAMT", BitConverter.GetBytes((ushort)7)),
             ("MOD4", Str("female.nif")));
         var meta = Meta();
-        var direct = Armor.CreateFromBinary(new MutagenFrame(new MutagenMemoryReadStream(bytes, meta)));
+        var direct = Armor.CreateFromBinary(Frame(bytes));
         var overlay = ArmorBinaryOverlay.ArmorFactory(new OverlayStream(bytes, meta), new BinaryOverlayFactoryPackage(meta));
 
         foreach (var armo in new IArmorGetter[] { direct, overlay })
@@ -222,7 +193,7 @@ public class GenderedSplitPairTests
             ("FPRT", Str("Mother")),
             ("FCHT", Str("Daughter")));
         var meta = Meta();
-        var direct = AssociationType.CreateFromBinary(new MutagenFrame(new MutagenMemoryReadStream(bytes, meta)));
+        var direct = AssociationType.CreateFromBinary(Frame(bytes));
         var overlay = AssociationTypeBinaryOverlay.AssociationTypeFactory(new OverlayStream(bytes, meta), new BinaryOverlayFactoryPackage(meta));
 
         foreach (var astp in new IAssociationTypeGetter[] { direct, overlay })
@@ -234,5 +205,116 @@ public class GenderedSplitPairTests
             astp.Title.Male.ShouldBe("Son");
             astp.Title.Female.ShouldBe("Daughter");
         }
+    }
+
+    // HeadData has a NAM0 marker ahead of each gender's block (ParseMarkerAheadOfItem).
+    [Fact]
+    public void Race_SeparatedHeadDataBlocks_ReadsBothHalves()
+    {
+        var bytes = MakeRecord("RACE",
+            ("EDID", Str("TestRace")),
+            ("NAM0", Array.Empty<byte>()),
+            ("MNAM", Array.Empty<byte>()),
+            ("RPRM", U32(0x811)),
+            ("NAM8", U32(0x900)),
+            ("NAM0", Array.Empty<byte>()),
+            ("FNAM", Array.Empty<byte>()),
+            ("RPRF", U32(0x812)));
+
+        foreach (var race in ReadRaceBoth(bytes))
+        {
+            race.MorphRace.FormKey.ShouldBe(new FormKey(TestModKey, 0x900));
+            race.HeadData.ShouldNotBeNull();
+            race.HeadData.Male.ShouldNotBeNull();
+            race.HeadData.Male.RacePresets.Select(x => x.FormKey).ShouldBe(new[] { new FormKey(TestModKey, 0x811) });
+            race.HeadData.Female.ShouldNotBeNull();
+            race.HeadData.Female.RacePresets.Select(x => x.FormKey).ShouldBe(new[] { new FormKey(TestModKey, 0x812) });
+        }
+    }
+
+    // SkeletalModel's halves each follow their own MNAM or FNAM marker.
+    [Fact]
+    public void Race_SeparatedSkeletalModelPair_ReadsBothHalves()
+    {
+        var bytes = MakeRecord("RACE",
+            ("EDID", Str("TestRace")),
+            ("MNAM", Array.Empty<byte>()),
+            ("ANAM", Str("male.hkx")),
+            ("GNAM", U32(0x901)),
+            ("FNAM", Array.Empty<byte>()),
+            ("ANAM", Str("female.hkx")));
+
+        foreach (var race in ReadRaceBoth(bytes))
+        {
+            race.BodyPartData.FormKey.ShouldBe(new FormKey(TestModKey, 0x901));
+            race.SkeletalModel.ShouldNotBeNull();
+            race.SkeletalModel.Male.ShouldNotBeNull();
+            race.SkeletalModel.Male.File.GivenPath.ShouldBe("male.hkx");
+            race.SkeletalModel.Female.ShouldNotBeNull();
+            race.SkeletalModel.Female.File.GivenPath.ShouldBe("female.hkx");
+        }
+    }
+
+    // A stray subrecord inside the BodyData block sends its FNAM to the SkeletalModel arm, where
+    // nothing parses after the marker. That must not wipe the SkeletalModel half read earlier.
+    [Fact]
+    public void Race_MarkerWithNothingParsed_KeepsHalfReadEarlier()
+    {
+        var bytes = MakeRecord("RACE",
+            ("EDID", Str("TestRace")),
+            ("MNAM", Array.Empty<byte>()),
+            ("ANAM", Str("male.hkx")),
+            ("FNAM", Array.Empty<byte>()),
+            ("ANAM", Str("female.hkx")),
+            ("NAM1", Array.Empty<byte>()),
+            ("MNAM", Array.Empty<byte>()),
+            ("INDX", U32(0)),
+            ("GNAM", U32(0x901)),
+            ("FNAM", Array.Empty<byte>()),
+            ("INDX", U32(0)));
+
+        foreach (var race in ReadRaceBoth(bytes))
+        {
+            race.SkeletalModel.ShouldNotBeNull();
+            race.SkeletalModel.Male.ShouldNotBeNull();
+            race.SkeletalModel.Male.File.GivenPath.ShouldBe("male.hkx");
+            race.SkeletalModel.Female.ShouldNotBeNull();
+            race.SkeletalModel.Female.File.GivenPath.ShouldBe("female.hkx");
+        }
+    }
+
+    // A pair present in the bytes replaces the target's pair whole, like every other field present in the
+    // bytes; only halves read earlier in the same record are kept. A pair absent from the bytes is left alone.
+    [Fact]
+    public void ArmorAddon_CopyInFromBinary_ReplacesPresentPairAndKeepsAbsentPair()
+    {
+        var arma = ReadArmaDirect(ArmaAdjacent());
+        var bytes = MakeRecord("ARMA",
+            ("EDID", Str("TestArma")),
+            ("DNAM", new byte[12]),
+            ("MOD3", Str("newfemale.nif")));
+
+        arma.CopyInFromBinary(Frame(bytes));
+
+        arma.WorldModel.ShouldNotBeNull();
+        arma.WorldModel.Male.ShouldBeNull();
+        arma.WorldModel.Female.ShouldNotBeNull();
+        arma.WorldModel.Female.File.GivenPath.ShouldBe("newfemale.nif");
+        arma.FirstPersonModel.ShouldNotBeNull();
+        arma.FirstPersonModel.Male.ShouldNotBeNull();
+        arma.FirstPersonModel.Male.File.GivenPath.ShouldBe("male1st.nif");
+        arma.FirstPersonModel.Female.ShouldNotBeNull();
+        arma.FirstPersonModel.Female.File.GivenPath.ShouldBe("female1st.nif");
+        SubrecordTypes(Constants, Write(arma)).ShouldNotContain("MOD2");
+    }
+
+    [Fact]
+    public void ArmorAddon_CopyInFromBinary_KeepsBothHalvesOfSplitPair()
+    {
+        var arma = ReadArmaDirect(ArmaAdjacent());
+
+        arma.CopyInFromBinary(Frame(ArmaInterleaved()));
+
+        AssertAllFourModels(arma);
     }
 }
