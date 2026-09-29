@@ -172,6 +172,12 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
             {
                 args.Add($"fallback: {gender.SubTypeGeneration.GetDefault(getter: false)}");
             }
+
+            // The halves are separate subrecords, so the arm can be entered once per half; keep what an earlier entry read
+            if (data.HasTrigger && !data.RecordType.HasValue)
+            {
+                args.Add($"existing: {itemAccessor}");
+            }
         }
     }
 
@@ -633,6 +639,12 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
                         if (notNull)
                         {
                             args.Add($"fallback: {gendered.SubTypeGeneration.GetDefault(getter: false)}");
+                        }
+
+                        // The halves are separate subrecords, so the arm can be entered once per half; keep what an earlier entry read
+                        if (typeGen.GetFieldData().HasTrigger && !typeGen.GetFieldData().RecordType.HasValue)
+                        {
+                            args.Add($"existing: _{typeGen.Name}Overlay");
                         }
                     }
                 }
