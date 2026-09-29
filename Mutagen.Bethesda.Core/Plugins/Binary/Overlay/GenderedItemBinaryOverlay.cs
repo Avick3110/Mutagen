@@ -10,14 +10,15 @@ namespace Mutagen.Bethesda.Plugins.Binary.Overlay;
 
 internal sealed class GenderedItemBinaryOverlay<T> : PluginBinaryOverlay, IGenderedItemGetter<T>
 {
-    private readonly int? _male;
-    private readonly int? _female;
-    private readonly T _fallback;
-    private readonly IGenderedItemGetter<T>? _existing;
+    // Each half is the memory its subrecord starts at, found here or carried over from an earlier entry
+    private readonly ReadOnlyMemorySlice<byte>? _maleData;
+    private readonly ReadOnlyMemorySlice<byte>? _femaleData;
+    private readonly T _maleFallback;
+    private readonly T _femaleFallback;
     private readonly Func<ReadOnlyMemorySlice<byte>, BinaryOverlayFactoryPackage, T> _creator;
 
-    public T Male => _male.HasValue ? _creator(_recordData.Slice(_male.Value), _package) : _existing != null ? _existing.Male : _fallback;
-    public T Female => _female.HasValue ? _creator(_recordData.Slice(_female.Value), _package) : _existing != null ? _existing.Female : _fallback;
+    public T Male => _maleData.HasValue ? _creator(_maleData.Value, _package) : _maleFallback;
+    public T Female => _femaleData.HasValue ? _creator(_femaleData.Value, _package) : _femaleFallback;
 
     public T this[MaleFemaleGender gender] => gender == MaleFemaleGender.Male ? Male : Female;
 
@@ -31,11 +32,36 @@ internal sealed class GenderedItemBinaryOverlay<T> : PluginBinaryOverlay, IGende
         IGenderedItemGetter<T>? existing = null)
         : base(new MemoryPair(bytes, bytes), package)
     {
-        _male = male;
-        _female = female;
         _creator = creator;
-        _fallback = fallback;
-        _existing = existing;
+        var prior = existing as GenderedItemBinaryOverlay<T>;
+        if (male.HasValue)
+        {
+            _maleData = bytes.Slice(male.Value);
+            _maleFallback = fallback;
+        }
+        else if (prior != null)
+        {
+            _maleData = prior._maleData;
+            _maleFallback = prior._maleFallback;
+        }
+        else
+        {
+            _maleFallback = existing != null ? existing.Male : fallback;
+        }
+        if (female.HasValue)
+        {
+            _femaleData = bytes.Slice(female.Value);
+            _femaleFallback = fallback;
+        }
+        else if (prior != null)
+        {
+            _femaleData = prior._femaleData;
+            _femaleFallback = prior._femaleFallback;
+        }
+        else
+        {
+            _femaleFallback = existing != null ? existing.Female : fallback;
+        }
     }
 
     public IEnumerator<T> GetEnumerator()
