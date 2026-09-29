@@ -1804,12 +1804,27 @@ namespace Mutagen.Bethesda.Fallout3
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.MajorRecordParse<IRaceInternal>(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillStructs: RaceBinaryCreateTranslation.FillBinaryStructs,
-                fillTyped: RaceBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorHeadData = item.HeadData;
+            item.HeadData = null!;
+            var priorBodyData = item.BodyData;
+            item.BodyData = null!;
+            var priorFaceGenData = item.FaceGenData;
+            item.FaceGenData = null!;
+            try
+            {
+                PluginUtilityTranslation.MajorRecordParse<IRaceInternal>(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillStructs: RaceBinaryCreateTranslation.FillBinaryStructs,
+                    fillTyped: RaceBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.HeadData == null) item.HeadData = priorHeadData;
+                if (item.BodyData == null) item.BodyData = priorBodyData;
+                if (item.FaceGenData == null) item.FaceGenData = priorFaceGenData;
+            }
         }
         
         public override void CopyInFromBinary(

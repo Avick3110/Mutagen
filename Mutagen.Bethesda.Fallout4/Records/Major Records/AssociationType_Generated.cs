@@ -887,12 +887,24 @@ namespace Mutagen.Bethesda.Fallout4
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.MajorRecordParse<IAssociationTypeInternal>(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillStructs: AssociationTypeBinaryCreateTranslation.FillBinaryStructs,
-                fillTyped: AssociationTypeBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorParentTitle = item.ParentTitle;
+            item.ParentTitle = null!;
+            var priorTitle = item.Title;
+            item.Title = null!;
+            try
+            {
+                PluginUtilityTranslation.MajorRecordParse<IAssociationTypeInternal>(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillStructs: AssociationTypeBinaryCreateTranslation.FillBinaryStructs,
+                    fillTyped: AssociationTypeBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.ParentTitle == null) item.ParentTitle = priorParentTitle;
+                if (item.Title == null) item.Title = priorTitle;
+            }
         }
         
         public override void CopyInFromBinary(

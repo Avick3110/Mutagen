@@ -4180,12 +4180,27 @@ namespace Mutagen.Bethesda.Starfield
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.MajorRecordParse<IRaceInternal>(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillStructs: RaceBinaryCreateTranslation.FillBinaryStructs,
-                fillTyped: RaceBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorBodyData = item.BodyData;
+            item.BodyData = null!;
+            var priorChargenAndSkintones = item.ChargenAndSkintones;
+            item.ChargenAndSkintones = null!;
+            var priorHeadPartsAndBoneModifiers = item.HeadPartsAndBoneModifiers;
+            item.HeadPartsAndBoneModifiers = null!;
+            try
+            {
+                PluginUtilityTranslation.MajorRecordParse<IRaceInternal>(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillStructs: RaceBinaryCreateTranslation.FillBinaryStructs,
+                    fillTyped: RaceBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.BodyData == null) item.BodyData = priorBodyData;
+                if (item.ChargenAndSkintones == null) item.ChargenAndSkintones = priorChargenAndSkintones;
+                if (item.HeadPartsAndBoneModifiers == null) item.HeadPartsAndBoneModifiers = priorHeadPartsAndBoneModifiers;
+            }
         }
         
         public override void CopyInFromBinary(

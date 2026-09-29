@@ -2236,12 +2236,36 @@ namespace Mutagen.Bethesda.Starfield
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.MajorRecordParse<IArmorAddonInternal>(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillStructs: ArmorAddonBinaryCreateTranslation.FillBinaryStructs,
-                fillTyped: ArmorAddonBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorWorldModel = item.WorldModel;
+            item.WorldModel = null!;
+            var priorFirstPersonModel = item.FirstPersonModel;
+            item.FirstPersonModel = null!;
+            var priorAltSkeleton = item.AltSkeleton;
+            item.AltSkeleton = null!;
+            var priorSkinTexture = item.SkinTexture;
+            item.SkinTexture = null!;
+            var priorMorphs = item.Morphs;
+            item.Morphs = null!;
+            var priorBoneDataModifiers = item.BoneDataModifiers;
+            item.BoneDataModifiers = null!;
+            try
+            {
+                PluginUtilityTranslation.MajorRecordParse<IArmorAddonInternal>(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillStructs: ArmorAddonBinaryCreateTranslation.FillBinaryStructs,
+                    fillTyped: ArmorAddonBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.WorldModel == null) item.WorldModel = priorWorldModel;
+                if (item.FirstPersonModel == null) item.FirstPersonModel = priorFirstPersonModel;
+                if (item.AltSkeleton == null) item.AltSkeleton = priorAltSkeleton;
+                if (item.SkinTexture == null) item.SkinTexture = priorSkinTexture;
+                if (item.Morphs == null) item.Morphs = priorMorphs;
+                if (item.BoneDataModifiers == null) item.BoneDataModifiers = priorBoneDataModifiers;
+            }
         }
         
         public override void CopyInFromBinary(
@@ -3674,7 +3698,8 @@ namespace Mutagen.Bethesda.Starfield
                 case RecordTypeInts.FLLD:
                 case RecordTypeInts.XFLG:
                 {
-                    if (!lastParsed.ParsedIndex.HasValue
+                    if ((nextRecordType.TypeInt is RecordTypeInts.MOD2 or RecordTypeInts.MOD3 or RecordTypeInts.MO2T or RecordTypeInts.MO3T or RecordTypeInts.MLM1 or RecordTypeInts.MLM2 or RecordTypeInts.MO2C or RecordTypeInts.MO3C or RecordTypeInts.MO2F or RecordTypeInts.MO3F)
+                        || !lastParsed.ParsedIndex.HasValue
                         || lastParsed.ParsedIndex.Value <= (int)ArmorAddon_FieldIndex.HealthBarOffset)
                     {
                         item.WorldModel = Mutagen.Bethesda.Plugins.Binary.Translations.GenderedItemBinaryTranslation.Parse<Model>(
@@ -4157,7 +4182,8 @@ namespace Mutagen.Bethesda.Starfield
                 case RecordTypeInts.FLLD:
                 case RecordTypeInts.XFLG:
                 {
-                    if (!lastParsed.ParsedIndex.HasValue
+                    if ((type.TypeInt is RecordTypeInts.MOD2 or RecordTypeInts.MOD3 or RecordTypeInts.MO2T or RecordTypeInts.MO3T or RecordTypeInts.MLM1 or RecordTypeInts.MLM2 or RecordTypeInts.MO2C or RecordTypeInts.MO3C or RecordTypeInts.MO2F or RecordTypeInts.MO3F)
+                        || !lastParsed.ParsedIndex.HasValue
                         || lastParsed.ParsedIndex.Value <= (int)ArmorAddon_FieldIndex.HealthBarOffset)
                     {
                         _WorldModelOverlay = GenderedItemBinaryOverlay.Factory<IModelGetter>(

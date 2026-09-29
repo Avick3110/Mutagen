@@ -791,11 +791,20 @@ namespace Mutagen.Bethesda.Fallout4
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.SubrecordParse(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillTyped: RankBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorTitle = item.Title;
+            item.Title = null!;
+            try
+            {
+                PluginUtilityTranslation.SubrecordParse(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillTyped: RankBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.Title == null) item.Title = priorTitle;
+            }
         }
         
         #endregion

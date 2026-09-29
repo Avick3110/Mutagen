@@ -2864,12 +2864,21 @@ namespace Mutagen.Bethesda.Starfield
             MutagenFrame frame,
             TypedParseParams translationParams)
         {
-            PluginUtilityTranslation.MajorRecordParse<IArmorInternal>(
-                record: item,
-                frame: frame,
-                translationParams: translationParams,
-                fillStructs: ArmorBinaryCreateTranslation.FillBinaryStructs,
-                fillTyped: ArmorBinaryCreateTranslation.FillBinaryRecordTypes);
+            var priorWorldModel = item.WorldModel;
+            item.WorldModel = null!;
+            try
+            {
+                PluginUtilityTranslation.MajorRecordParse<IArmorInternal>(
+                    record: item,
+                    frame: frame,
+                    translationParams: translationParams,
+                    fillStructs: ArmorBinaryCreateTranslation.FillBinaryStructs,
+                    fillTyped: ArmorBinaryCreateTranslation.FillBinaryRecordTypes);
+            }
+            finally
+            {
+                if (item.WorldModel == null) item.WorldModel = priorWorldModel;
+            }
         }
         
         public override void CopyInFromBinary(
