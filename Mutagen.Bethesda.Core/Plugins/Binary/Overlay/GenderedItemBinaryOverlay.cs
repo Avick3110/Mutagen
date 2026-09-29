@@ -166,20 +166,17 @@ internal static class GenderedItemBinaryOverlay
         for (int i = 0; i < 2; i++)
         {
             if (stream.Complete) break;
-            var recType = HeaderTranslation.ReadNextRecordType(stream,
-                package.MetaData.Constants.SubConstants.LengthLength, out var markerLen);
-            stream.Position += markerLen;
+            var markerHeader = stream.GetSubrecordHeader();
+            var recType = markerHeader.RecordType;
+            if (recType != male && recType != female) break;
+            stream.Position += markerHeader.TotalLength;
             if (recType == male)
             {
                 maleLoc = (ushort)(stream.Position - offset);
             }
-            else if (recType == female)
-            {
-                femaleLoc = (ushort)(stream.Position - offset);
-            }
             else
             {
-                break;
+                femaleLoc = (ushort)(stream.Position - offset);
             }
 
             HeaderTranslation.ReadNextRecordType(stream, package.MetaData.Constants.SubConstants.LengthLength,
