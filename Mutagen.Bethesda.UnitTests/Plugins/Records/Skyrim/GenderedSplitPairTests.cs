@@ -211,4 +211,28 @@ public class GenderedSplitPairTests
             armo.WorldModel.Female.Model.File.GivenPath.ShouldBe("female.nif");
         }
     }
+
+    [Fact]
+    public void AssociationType_InterleavedTitlePairs_ReadsAllFour()
+    {
+        var bytes = MakeRecord("ASTP",
+            ("EDID", Str("TestAstp")),
+            ("MPRT", Str("Father")),
+            ("MCHT", Str("Son")),
+            ("FPRT", Str("Mother")),
+            ("FCHT", Str("Daughter")));
+        var meta = Meta();
+        var direct = AssociationType.CreateFromBinary(new MutagenFrame(new MutagenMemoryReadStream(bytes, meta)));
+        var overlay = AssociationTypeBinaryOverlay.AssociationTypeFactory(new OverlayStream(bytes, meta), new BinaryOverlayFactoryPackage(meta));
+
+        foreach (var astp in new IAssociationTypeGetter[] { direct, overlay })
+        {
+            astp.ParentTitle.ShouldNotBeNull();
+            astp.ParentTitle.Male.ShouldBe("Father");
+            astp.ParentTitle.Female.ShouldBe("Mother");
+            astp.Title.ShouldNotBeNull();
+            astp.Title.Male.ShouldBe("Son");
+            astp.Title.Female.ShouldBe("Daughter");
+        }
+    }
 }
