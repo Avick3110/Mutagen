@@ -11,6 +11,13 @@ namespace Mutagen.Bethesda.Generation.Modules.Binary;
 
 public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGeneration
 {
+    // The halves are separate subrecords, so a record's arm for the field can be entered once per half
+    public static bool IsSplitPair(TypeGeneration typeGen)
+    {
+        var data = typeGen.GetFieldData();
+        return data.HasTrigger && !data.RecordType.HasValue;
+    }
+
     public override async Task<int?> ExpectedLength(ObjectGeneration objGen, TypeGeneration typeGen)
     {
         GenderedType gender = typeGen as GenderedType;
@@ -173,8 +180,8 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
                 args.Add($"fallback: {gender.SubTypeGeneration.GetDefault(getter: false)}");
             }
 
-            // The halves are separate subrecords, so the arm can be entered once per half; keep what an earlier entry read
-            if (data.HasTrigger && !data.RecordType.HasValue)
+            // Keep what an earlier entry into the arm read
+            if (IsSplitPair(typeGen))
             {
                 args.Add($"existing: {itemAccessor}");
             }
@@ -641,8 +648,8 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
                             args.Add($"fallback: {gendered.SubTypeGeneration.GetDefault(getter: false)}");
                         }
 
-                        // The halves are separate subrecords, so the arm can be entered once per half; keep what an earlier entry read
-                        if (typeGen.GetFieldData().HasTrigger && !typeGen.GetFieldData().RecordType.HasValue)
+                        // Keep what an earlier entry into the arm read
+                        if (IsSplitPair(typeGen))
                         {
                             args.Add($"existing: _{typeGen.Name}Overlay");
                         }
@@ -650,7 +657,11 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
                 }
                 else
                 {
-                    
+                    // This path reads both halves from one subrecord, so it cannot hold halves read by separate entries
+                    if (IsSplitPair(typeGen))
+                    {
+                        throw new NotImplementedException($"{objGen.Name}.{typeGen.Name}: a gendered field whose halves are separate subrecords needs markers, a gender enum record or a triggered item type in the overlay");
+                    }
                     await base.GenerateWrapperRecordTypeParse(sb, objGen, typeGen, locationAccessor, packageAccessor,
                         converterAccessor);
                 }

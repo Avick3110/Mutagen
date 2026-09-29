@@ -17,15 +17,27 @@ internal sealed class GenderedItemBinaryTranslation
     
     public static GenderedItem<TItem> ParseRequired<TItem>(
         MutagenFrame frame,
-        BinarySubParseDelegate<MutagenFrame, TItem> transl)
+        BinarySubParseDelegate<MutagenFrame, TItem> transl,
+        IGenderedItemGetter<TItem>? existing = null)
     {
-        if (!transl(frame, out var male))
+        TItem male, female;
+        if (transl(frame, out var readMale))
         {
-            throw new ArgumentException();
+            male = readMale;
         }
-        if (!transl(frame, out var female))
+        else
         {
-            throw new ArgumentException();
+            if (existing == null) throw new ArgumentException();
+            male = existing.Male;
+        }
+        if (transl(frame, out var readFemale))
+        {
+            female = readFemale;
+        }
+        else
+        {
+            if (existing == null) throw new ArgumentException();
+            female = existing.Female;
         }
         return new GenderedItem<TItem>(male, female);
     }
@@ -127,19 +139,31 @@ internal sealed class GenderedItemBinaryTranslation
     public static GenderedItem<TItem> ParseRequired<TItem>(
         MutagenFrame frame,
         BinaryMasterParseDelegate<TItem> transl,
-        RecordTypeConverter? recordTypeConverter = null)
+        RecordTypeConverter? recordTypeConverter = null,
+        IGenderedItemGetter<TItem>? existing = null)
     {
         var p = new TypedParseParams(
             lengthOverride: null,
             recordTypeConverter: recordTypeConverter,
             doNotShortCircuit: false);
-        if (!transl(frame, out var male, p))
+        TItem male, female;
+        if (transl(frame, out var readMale, p))
         {
-            throw new ArgumentException();
+            male = readMale;
         }
-        if (!transl(frame, out var female, p))
+        else
         {
-            throw new ArgumentException();
+            if (existing == null) throw new ArgumentException();
+            male = existing.Male;
+        }
+        if (transl(frame, out var readFemale, p))
+        {
+            female = readFemale;
+        }
+        else
+        {
+            if (existing == null) throw new ArgumentException();
+            female = existing.Female;
         }
         return new GenderedItem<TItem>(male, female);
     }
