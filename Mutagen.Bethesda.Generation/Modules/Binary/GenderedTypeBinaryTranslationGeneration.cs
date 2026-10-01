@@ -11,6 +11,12 @@ namespace Mutagen.Bethesda.Generation.Modules.Binary;
 
 public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGeneration
 {
+    public static bool IsSplitPair(TypeGeneration typeGen)
+    {
+        var data = typeGen.GetFieldData();
+        return data.HasTrigger && !data.RecordType.HasValue;
+    }
+
     public override async Task<int?> ExpectedLength(ObjectGeneration objGen, TypeGeneration typeGen)
     {
         GenderedType gender = typeGen as GenderedType;
@@ -171,6 +177,11 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
             if (notNull)
             {
                 args.Add($"fallback: {gender.SubTypeGeneration.GetDefault(getter: false)}");
+            }
+
+            if (IsSplitPair(typeGen))
+            {
+                args.Add($"existing: {itemAccessor}");
             }
         }
     }
@@ -634,11 +645,19 @@ public class GenderedTypeBinaryTranslationGeneration : BinaryTranslationGenerati
                         {
                             args.Add($"fallback: {gendered.SubTypeGeneration.GetDefault(getter: false)}");
                         }
+
+                        if (IsSplitPair(typeGen))
+                        {
+                            args.Add($"existing: _{typeGen.Name}Overlay");
+                        }
                     }
                 }
                 else
                 {
-                    
+                    if (IsSplitPair(typeGen))
+                    {
+                        throw new NotImplementedException($"{objGen.Name}.{typeGen.Name}: a gendered field whose halves are separate subrecords needs markers, a gender enum record or a triggered item type in the overlay");
+                    }
                     await base.GenerateWrapperRecordTypeParse(sb, objGen, typeGen, locationAccessor, packageAccessor,
                         converterAccessor);
                 }
