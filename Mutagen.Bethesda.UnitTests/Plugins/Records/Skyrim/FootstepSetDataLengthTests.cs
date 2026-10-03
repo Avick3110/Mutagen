@@ -135,11 +135,14 @@ public class FootstepSetDataLengthTests
         }
     }
 
-    [Fact]
-    public void ShortData_ReadsWholeFormIdsPresent()
+    [Theory]
+    [InlineData(4)]
+    [InlineData(3)]
+    [InlineData(1)]
+    public void PopulatedListWithSurplusData_ReadsListAndFollowingSubrecords(int surplus)
     {
-        var data = FormIds(0x801).Concat(new byte[2]).ToArray();
-        var bytes = MakeFootstepSetBytes(Counts(2, 0, 0, 0, 1), data, edidLast: true);
+        var data = FormIds(0x801).Concat(new byte[surplus]).ToArray();
+        var bytes = MakeFootstepSetBytes(Counts(1, 0, 0, 0, 0), data, edidLast: true);
 
         foreach (var footstepSet in ReadBoth(bytes))
         {
@@ -147,7 +150,38 @@ public class FootstepSetDataLengthTests
             footstepSet.WalkForwardFootsteps.Select(x => x.FormKey)
                 .ShouldBe(new[] { new FormKey(TestModKey, 0x801) });
             footstepSet.RunForwardFootsteps.ShouldBeEmpty();
+            footstepSet.WalkForwardAlternateFootsteps.ShouldBeEmpty();
+            footstepSet.RunForwardAlternateFootsteps.ShouldBeEmpty();
             footstepSet.WalkForwardAlternateFootsteps2.ShouldBeEmpty();
+            Subrecord(Write(footstepSet), "DATA").ShouldBe(FormIds(0x801));
+        }
+    }
+
+    [Fact]
+    public void ShortData_Throws()
+    {
+        var data = FormIds(0x801).Concat(new byte[2]).ToArray();
+        var bytes = MakeFootstepSetBytes(Counts(2, 0, 0, 0, 1), data, edidLast: true);
+
+        foreach (var read in new Func<byte[], IFootstepSetGetter>[] { ReadDirect, ReadOverlay })
+        {
+            Should.Throw<Exception>(() => read(bytes))
+                .GetBaseException().Message.ShouldContain("did not match previous counts");
+        }
+    }
+
+    [Fact]
+    public void DataLengthPastRecordEnd_Throws()
+    {
+        var bytes = MakeFootstepSetBytes(Counts(0, 0, 0, 0, 0), new byte[4], edidLast: true);
+        var dataLengthPos = 24 + 6 + 20 + 4;
+        bytes[dataLengthPos] = 0xFF;
+        bytes[dataLengthPos + 1] = 0xFF;
+
+        foreach (var read in new Func<byte[], IFootstepSetGetter>[] { ReadDirect, ReadOverlay })
+        {
+            Should.Throw<Exception>(() => read(bytes))
+                .GetBaseException().Message.ShouldContain("ran past the end of its record");
         }
     }
 
